@@ -192,12 +192,11 @@ def print_mathematical_modelling(df: pd.DataFrame, total_sales: float, df_sorted
 
 
 def create_visualizations(df: pd.DataFrame, df_sorted: pd.DataFrame, stats_results: dict, config: dict) -> None:
-    """Create comprehensive visualization dashboard."""
+    """Create comprehensive visualization dashboard with all 9 plots."""
     print(f"\n🎨 GENERATING VISUALISATIONS...")
     
     # Color scheme from config
     colors_cfg = config['visualization']['colors']
-    tier_cfg = config['visualization']['tier_colors']
     
     DARK = colors_cfg['dark']
     MID = colors_cfg['mid']
@@ -225,11 +224,15 @@ def create_visualizations(df: pd.DataFrame, df_sorted: pd.DataFrame, stats_resul
     bar_colors_sorted = [tier_colors[t] for t in df_sorted["Performance_Tier"]]
     
     df_eff = df.sort_values("Efficiency_Score", ascending=False)
+    df_asv = df.sort_values("Avg_Sale_Value", ascending=False)
     
-    # [Plots 1-9 code here - same as original but using helper variables]
-    # For brevity, showing Plot 1 as example:
+    # Extract regression results
+    slope = stats_results['slope']
+    intercept = stats_results['intercept']
+    r_val = stats_results['r_value']
+    r = stats_results['pearson_r']
     
-    # Plot 1: Sales bar chart
+    # ── Plot 1: Sales bar chart ──────────────────────────────────────────────────
     ax1 = fig.add_subplot(gs[0, 0:2])
     bars = ax1.bar(df["Name"], df["Jan_Sales"], color=bar_colors, edgecolor="white", linewidth=0.8, width=0.65)
     ax1.set_title("January Sales per Attendant", fontweight="bold", fontsize=12, color=DARK)
@@ -248,10 +251,7 @@ def create_visualizations(df: pd.DataFrame, df_sorted: pd.DataFrame, stats_resul
     ax1.set_facecolor("#FDFEFE")
     ax1.tick_params(axis='x', labelrotation=15)
     
-    # [Additional plots 2-9 - same structure as original...]
-    # (Truncated for space - complete version includes all 9 plots)
-    
-    # Plot 2: Transactions bar
+    # ── Plot 2: Transactions bar ─────────────────────────────────────────────────
     ax2 = fig.add_subplot(gs[0, 2])
     bars2 = ax2.barh(df["Name"][::-1], df["Transactions"][::-1],
                      color=[tier_colors[t] for t in df["Performance_Tier"][::-1]],
@@ -266,8 +266,117 @@ def create_visualizations(df: pd.DataFrame, df_sorted: pd.DataFrame, stats_resul
                  str(val), va="center", fontsize=8, fontweight="bold")
     ax2.set_facecolor("#FDFEFE")
     
-    # (Continue with remaining plots...)
-    # For full implementation, copy all remaining plot code from original
+    # ── Plot 3: Avg Sale Value ───────────────────────────────────────────────────
+    ax3 = fig.add_subplot(gs[1, 0])
+    bars3  = ax3.bar(df_asv["Name"], df_asv["Avg_Sale_Value"],
+                     color=[tier_colors[t] for t in df_asv["Performance_Tier"]],
+                     edgecolor="white", width=0.65)
+    ax3.set_title("Avg Sale Value\n(ZAR per Transaction)", fontweight="bold", fontsize=10, color=DARK)
+    ax3.set_ylabel("R per transaction", fontsize=9)
+    ax3.tick_params(axis='x', labelrotation=30, labelsize=8)
+    for bar, val in zip(bars3, df_asv["Avg_Sale_Value"]):
+        ax3.text(bar.get_x()+bar.get_width()/2, bar.get_height()+0.3,
+                 f"R{val:.0f}", ha="center", fontsize=7.5, fontweight="bold")
+    ax3.set_facecolor("#FDFEFE")
+    
+    # ── Plot 4: Scatter Sales vs Transactions + regression ──────────────────────
+    ax4 = fig.add_subplot(gs[1, 1])
+    colors_sc = [tier_colors[t] for t in df["Performance_Tier"]]
+    ax4.scatter(df["Transactions"], df["Jan_Sales"], c=colors_sc,
+                s=120, zorder=5, edgecolors="white", linewidths=0.8)
+    for _, row in df.iterrows():
+        ax4.annotate(row["Name"], (row["Transactions"], row["Jan_Sales"]),
+                     fontsize=7, xytext=(4,4), textcoords="offset points")
+    x_line = np.linspace(df["Transactions"].min(), df["Transactions"].max(), 100)
+    y_line = intercept + slope * x_line
+    ax4.plot(x_line, y_line, "k--", linewidth=1.5, alpha=0.7,
+             label=f"OLS fit  R²={r_val**2:.3f}")
+    ax4.set_title(f"Sales vs Transactions\nPearson r={r:.3f}", fontweight="bold", fontsize=10, color=DARK)
+    ax4.set_xlabel("Transactions", fontsize=9)
+    ax4.set_ylabel("Sales (ZAR)", fontsize=9)
+    ax4.yaxis.set_major_formatter(plt.FuncFormatter(lambda x,_: f"R{x/1000:.0f}k"))
+    ax4.legend(fontsize=8)
+    ax4.set_facecolor("#FDFEFE")
+    
+    # ── Plot 5: Sales Share Pie ──────────────────────────────────────────────────
+    ax5 = fig.add_subplot(gs[1, 2])
+    pie_colors = [tier_colors[t] for t in df_sorted["Performance_Tier"]]
+    wedges, texts, autotexts = ax5.pie(
+        df_sorted["Jan_Sales"], labels=df_sorted["Name"],
+        autopct="%1.1f%%", colors=pie_colors,
+        startangle=140, wedgeprops={"edgecolor":"white","linewidth":1.2})
+    for at in autotexts:
+        at.set_fontsize(7); at.set_color("white"); at.set_fontweight("bold")
+    for t in texts: t.set_fontsize(8)
+    ax5.set_title("Sales Share\n(% of Total)", fontweight="bold", fontsize=10, color=DARK)
+    
+    # ── Plot 6: Pareto chart ─────────────────────────────────────────────────────
+    ax6 = fig.add_subplot(gs[2, 0:2])
+    ax6b = ax6.twinx()
+    ax6.bar(df_sorted["Name"], df_sorted["Jan_Sales"],
+            color=bar_colors_sorted, edgecolor="white", width=0.65, label="Sales")
+    ax6b.plot(df_sorted["Name"], df_sorted["Cum_Sales_Pct"],
+              color=DARK, marker="o", linewidth=2, markersize=6, label="Cumulative %")
+    ax6b.axhline(80, color=RED, linestyle="--", linewidth=1.2, alpha=0.7, label="80% line")
+    ax6.set_title("Pareto Chart — Cumulative Sales Contribution", fontweight="bold", fontsize=11, color=DARK)
+    ax6.set_ylabel("Sales (ZAR)", fontsize=9)
+    ax6b.set_ylabel("Cumulative %", fontsize=9)
+    ax6.yaxis.set_major_formatter(plt.FuncFormatter(lambda x,_: f"R{x/1000:.0f}k"))
+    ax6b.set_ylim(0, 110)
+    ax6.tick_params(axis='x', labelrotation=15)
+    ax6.set_facecolor("#FDFEFE")
+    lines1, labels1 = ax6.get_legend_handles_labels()
+    lines2, labels2 = ax6b.get_legend_handles_labels()
+    ax6.legend(lines1+lines2, labels1+labels2, fontsize=8)
+    
+    # ── Plot 7: Efficiency Score ─────────────────────────────────────────────────
+    ax7 = fig.add_subplot(gs[2, 2])
+    eff_colors = [tier_colors[t] for t in df_eff["Performance_Tier"]]
+    bars7 = ax7.barh(df_eff["Name"][::-1], df_eff["Efficiency_Score"][::-1],
+                     color=eff_colors[::-1], edgecolor="white", height=0.65)
+    ax7.set_title("Composite\nEfficiency Score", fontweight="bold", fontsize=10, color=DARK)
+    ax7.set_xlabel("Score (0–100)", fontsize=9)
+    for bar, val in zip(bars7, df_eff["Efficiency_Score"][::-1]):
+        ax7.text(bar.get_width()+0.5, bar.get_y()+bar.get_height()/2,
+                 f"{val:.1f}", va="center", fontsize=8.5, fontweight="bold")
+    ax7.set_facecolor("#FDFEFE")
+    
+    # ── Plot 8: Z-score chart ────────────────────────────────────────────────────
+    ax8 = fig.add_subplot(gs[3, 0:2])
+    x = np.arange(len(df))
+    width = 0.38
+    z_sales_colors = [GREEN if z > 0 else RED for z in df["Sales_Zscore"]]
+    z_txn_colors   = [MID   if z > 0 else ORANGE for z in df["Txn_Zscore"]]
+    b1 = ax8.bar(x - width/2, df["Sales_Zscore"], width, color=z_sales_colors,
+                 edgecolor="white", label="Sales Z-score")
+    b2 = ax8.bar(x + width/2, df["Txn_Zscore"],   width, color=z_txn_colors,
+                 edgecolor="white", alpha=0.75, label="Txn Z-score")
+    ax8.axhline(0,    color="black", linewidth=0.8)
+    ax8.axhline(1.5,  color=ORANGE, linestyle="--", linewidth=1, alpha=0.6, label="+1.5 σ")
+    ax8.axhline(-1.5, color=ORANGE, linestyle="--", linewidth=1, alpha=0.6, label="-1.5 σ")
+    ax8.axhline(2.0,  color=RED,    linestyle=":",  linewidth=1, alpha=0.7, label="±2.0 σ (outlier)")
+    ax8.axhline(-2.0, color=RED,    linestyle=":",  linewidth=1, alpha=0.7)
+    ax8.set_xticks(x)
+    ax8.set_xticklabels(df["Name"], rotation=15)
+    ax8.set_title("Z-Score Analysis — Sales & Transactions\n(outliers: |z| > 2.0)", fontweight="bold", fontsize=11, color=DARK)
+    ax8.set_ylabel("Standard Deviations from Mean", fontsize=9)
+    ax8.legend(fontsize=7, ncol=3)
+    ax8.set_facecolor("#FDFEFE")
+    
+    # ── Plot 9: Sales % vs Txn % (effort vs output) ──────────────────────────────
+    ax9 = fig.add_subplot(gs[3, 2])
+    ax9.scatter(df["Txn_Share_Pct"], df["Sales_Share_Pct"],
+                c=bar_colors, s=130, zorder=5, edgecolors="white")
+    for _, row in df.iterrows():
+        ax9.annotate(row["Name"],
+                     (row["Txn_Share_Pct"], row["Sales_Share_Pct"]),
+                     fontsize=7.5, xytext=(4,3), textcoords="offset points")
+    ax9.plot([0,25],[0,25], "k--", linewidth=1, alpha=0.4, label="Perfect 1:1 line")
+    ax9.set_xlabel("% of Transactions", fontsize=9)
+    ax9.set_ylabel("% of Sales", fontsize=9)
+    ax9.set_title("Transaction Share vs\nSales Share", fontweight="bold", fontsize=10, color=DARK)
+    ax9.legend(fontsize=7)
+    ax9.set_facecolor("#FDFEFE")
     
     fig.suptitle(
         "Petrol Attendants — January Performance Analysis\n"
