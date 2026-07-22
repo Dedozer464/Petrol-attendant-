@@ -1,0 +1,91 @@
+# ============================================================================
+# Petrol Attendant Analysis Configuration
+# ============================================================================
+
+# Data
+data:
+  attendants:
+    - name: ANDY
+      sales: 18736.92
+      transactions: 853
+    - name: RETSI
+      sales: 18701.00
+      transactions: 663
+    - name: SEBONGILE
+      sales: 15740.89
+      transactions: 783
+    - name: LERATO
+      sales: 15673.00
+      transactions: 724
+    - name: AGNESS
+      sales: 15061.41
+      transactions: 634
+    - name: BROWN
+      sales: 13394.59
+      transactions: 607
+    - name: KENNY
+      sales: 13384.67
+      transactions: 560
+    - name: JAMES
+      sales: 1807.16
+      transactions: 85
+    - name: GEORGE
+      sales: 1702.29
+      transactions: 74
+
+# Performance Thresholds (in ZAR)
+thresholds:
+  tier_top: 15000
+  tier_mid: 13000
+  # Anything below tier_mid is "LOW PERFORMER"
+
+# Statistical Thresholds (for z-score analysis)
+statistics:
+  zscore_notable: 1.5    # Flag as "notable"
+  zscore_outlier: 2.0    # Flag as outlier
+  
+# One-sample t-test
+  ttest_reference: 10000 # Compare mean sales against this value
+  significance_level: 0.05
+
+# Efficiency Score Weights (must sum to 1.0)
+efficiency:
+  weights:
+    sales: 0.5
+    transactions: 0.3
+    avg_sale_value: 0.2
+
+# Visualization
+visualization:
+  figsize: [22, 26]
+  dpi: 160
+  facecolor: "#F4F6F9"
+  
+  # Color Scheme
+  colors:
+    dark: "#1B3A5C"
+    mid: "#2E6DA4"
+    light: "#D6E8F8"
+    red: "#C0392B"
+    orange: "#E67E22"
+    green: "#1E8449"
+    gold: "#D4AC0D"
+  
+  # Tier Colors
+  tier_colors:
+    TOP_PERFORMER: green
+    MID_PERFORMER: mid
+    LOW_PERFORMER: red
+  
+  # Grid Layout (rows, cols)
+  gridspec:
+    rows: 4
+    cols: 3
+    hspace: 0.50
+    wspace: 0.38
+
+# Output
+output:
+  plot_filename: "attendants_analysis.png"
+  # Leave blank for default system temp directory; use absolute path for fixed location
+  plot_directory: ""
